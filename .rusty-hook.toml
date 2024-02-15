@@ -1,0 +1,17 @@
+[hooks]
+pre-commit = """\
+    set -x \
+    && cargo sort -c \
+    && cargo fmt -- --check \
+    && cargo test --all-features --workspace --bins --examples --tests \
+    && cargo clippy --all-features --workspace --bins --examples --tests -- -D warnings \
+    && cargo sync-readme && git add README.md \
+    && typos \
+"""
+pre-push = """\
+    set -x \
+    && cargo sync-readme -c \
+"""
+
+[logging]
+verbose = true

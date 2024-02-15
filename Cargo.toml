@@ -1,0 +1,12 @@
+[package]
+description = "Extracts words from a phrase, omitting any punctuation, without allocation"
+edition = "2021"
+license = "MIT"
+name = "extract-words"
+repository = "https://github.com/imbolc/extract-words"
+version = "0.1.0"
+
+[dependencies]
+
+[dev-dependencies]
+rusty-hook = "0.11"
