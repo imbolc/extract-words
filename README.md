@@ -6,13 +6,24 @@
 
 # extract-words
 
-Extracts words from a phrase, omitting any punctuation, without allocation
+Extracts words from text without allocation
 
+## Examples
+
+Iteration through words, discarding punctuation
 ```rust
-assert_eq!(
-    extract_words("Hola, mundo!").collect::<Vec<_>>(),
-    ["Hola", "mundo"]
-);
+let mut words = extract_words("¿Cómo estás?");
+assert_eq!(words.next().unwrap(), "Cómo");
+assert_eq!(words.next().unwrap(), "estás");
+assert!(words.next().is_none());
+```
+
+Iteration through all entries
+```rust
+let mut entries = Entries::new("Bien :)");
+assert_eq!(entries.next().unwrap(), Entry::Word("Bien"));
+assert_eq!(entries.next().unwrap(), Entry::Other(" :)"));
+assert!(entries.next().is_none());
 ```
 
 <!-- cargo-sync-readme end -->

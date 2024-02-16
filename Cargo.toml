@@ -1,10 +1,10 @@
 [package]
-description = "Extracts words from a phrase, omitting any punctuation, without allocation"
+description = "Extracts words from text without allocation"
 edition = "2021"
 license = "MIT"
 name = "extract-words"
 repository = "https://github.com/imbolc/extract-words"
-version = "0.1.0"
+version = "0.2.0"
 
 [dependencies]
 

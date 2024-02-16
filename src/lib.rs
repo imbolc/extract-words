@@ -1,68 +1,124 @@
 //! # extract-words
 //!
-//! Extracts words from a phrase, omitting any punctuation, without allocation
+//! Extracts words from text without allocation
 //!
+//! ## Examples
+//!
+//! Iteration through words, discarding punctuation
 //! ```
 //! # use extract_words::extract_words;
-//! assert_eq!(
-//!     extract_words("Hola, mundo!").collect::<Vec<_>>(),
-//!     ["Hola", "mundo"]
-//! );
+//! let mut words = extract_words("¿Cómo estás?");
+//! assert_eq!(words.next().unwrap(), "Cómo");
+//! assert_eq!(words.next().unwrap(), "estás");
+//! assert!(words.next().is_none());
+//! ```
+//!
+//! Iteration through all entries
+//! ```
+//! # use extract_words::{Entries, Entry};
+//! let mut entries = Entries::new("Bien :)");
+//! assert_eq!(entries.next().unwrap(), Entry::Word("Bien"));
+//! assert_eq!(entries.next().unwrap(), Entry::Other(" :)"));
+//! assert!(entries.next().is_none());
 //! ```
 
 #![warn(clippy::all, missing_docs, nonstandard_style, future_incompatible)]
 
-/// Extracts words from a phrase, discarding punctuation
-pub fn extract_words(phrase: &str) -> WordIter {
-    WordIter::new(phrase)
+/// Extracts words from the text discarding punctuation
+pub fn extract_words(text: &str) -> impl Iterator<Item = &str> {
+    Entries::new(text).filter_map(|e| match e {
+        Entry::Word(s) => Some(s),
+        Entry::Other(_) => None,
+    })
 }
 
-/// An iterator over the words in a phrase created by the [`extract_words`] function
-pub struct WordIter<'a> {
-    phrase: &'a str,
+/// An iterator over text entries
+pub struct Entries<'a> {
+    text: &'a str,
     char_indices: std::str::CharIndices<'a>,
-    word_start: Option<usize>,
+    cur_entry: CurEntry,
 }
 
-impl<'a> WordIter<'a> {
-    fn new(phrase: &'a str) -> Self {
-        WordIter {
-            phrase,
-            char_indices: phrase.char_indices(),
-            word_start: None,
+/// Text entry
+#[derive(Debug, PartialEq)]
+pub enum Entry<'a> {
+    /// Punctuation, spaces, etc
+    Other(&'a str),
+    /// Word
+    Word(&'a str),
+}
+
+enum CurEntry {
+    None,
+    Other(usize),
+    Word(usize),
+}
+
+impl<'a> Entries<'a> {
+    /// Creates an iterator over the text entries
+    pub fn new(text: &'a str) -> Self {
+        Entries {
+            text,
+            char_indices: text.char_indices(),
+            cur_entry: CurEntry::None,
         }
     }
-
-    #[inline]
-    fn in_word(&self) -> bool {
-        self.word_start.is_some()
-    }
 }
 
-impl<'a> Iterator for WordIter<'a> {
-    type Item = &'a str;
+impl<'a> Iterator for Entries<'a> {
+    type Item = Entry<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some((i, c)) = self.char_indices.next() {
+        for (i, c) in self.char_indices.by_ref() {
             if c.is_alphanumeric() {
-                if !self.in_word() {
-                    self.word_start = Some(i);
+                match self.cur_entry {
+                    CurEntry::None => self.cur_entry = CurEntry::Word(i),
+                    CurEntry::Other(start) => {
+                        self.cur_entry = CurEntry::Word(i);
+                        return Some(Entry::Other(&self.text[start..i]));
+                    }
+                    CurEntry::Word(_) => (),
                 }
-                continue;
-            }
-
-            if let Some(start) = self.word_start.take() {
-                return Some(&self.phrase[start..i]);
-            }
-        }
-
-        if let Some(start) = self.word_start.take() {
-            if start < self.phrase.len() {
-                return Some(&self.phrase[start..]);
+            } else {
+                match self.cur_entry {
+                    CurEntry::None => self.cur_entry = CurEntry::Other(i),
+                    CurEntry::Other(_) => (),
+                    CurEntry::Word(start) => {
+                        self.cur_entry = CurEntry::Other(i);
+                        return Some(Entry::Word(&self.text[start..i]));
+                    }
+                }
             }
         }
 
-        None
+        match self.cur_entry {
+            CurEntry::None => None,
+            CurEntry::Other(start) => {
+                self.cur_entry = CurEntry::None;
+                if start < self.text.len() {
+                    Some(Entry::Other(&self.text[start..]))
+                } else {
+                    None
+                }
+            }
+            CurEntry::Word(start) => {
+                self.cur_entry = CurEntry::None;
+                if start < self.text.len() {
+                    Some(Entry::Word(&self.text[start..]))
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl<'a> AsRef<str> for Entry<'a> {
+    fn as_ref(&self) -> &str {
+        match self {
+            Entry::Other(s) => s,
+            Entry::Word(s) => s,
+        }
     }
 }
 
@@ -70,8 +126,8 @@ impl<'a> Iterator for WordIter<'a> {
 mod tests {
     use super::extract_words;
 
-    fn extract_vec(phrase: &str) -> Vec<&str> {
-        extract_words(phrase).collect()
+    fn extract_vec(text: &str) -> Vec<&str> {
+        extract_words(text).collect()
     }
 
     #[test]
